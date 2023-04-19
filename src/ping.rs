@@ -9,7 +9,7 @@ use windows::Win32::NetworkManagement::IpHelper::{
 };
 use windows::Win32::NetworkManagement::IpHelper::{ICMP_ECHO_REPLY, IP_OPTION_INFORMATION};
 
-use crate::cli::{Cli, Commands, PingArgs};
+use crate::cli_lib::{Cli, Commands, PingArgs};
 
 pub fn ping(cli: Cli) {
     //let cli = Cli::parse();
@@ -56,7 +56,7 @@ fn parse_dns_name_or_ip_into_ipv4_ip(dns_or_ip_string: &str) -> String {
     };
     println!("Mutting {}", dns_name);
 
-    return resolved_Ip.to_string();
+    return resolved_ip.to_string();
 }
 
 fn call_icmp_echo(args: &PingArgs) {

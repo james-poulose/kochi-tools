@@ -5,6 +5,7 @@ pub enum Commands {
     /// Pings a server
     Ping(PingArgs),
 
+    /// Traces the route of a Ping.
     Trace(TraceArgs),
 }
 
