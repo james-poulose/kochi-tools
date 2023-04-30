@@ -1,3 +1,5 @@
+use std::fmt;
+
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Subcommand)]
@@ -23,6 +25,9 @@ pub struct PingArgs {
 
     #[arg(short, long, default_value_t = 116)]
     pub ttl: u8,
+
+    #[arg(short, long, value_enum, default_value_t=OutputLevel::Default)]
+    pub verbosity: OutputLevel,
 }
 
 #[derive(Args)]
@@ -31,4 +36,20 @@ pub struct TraceArgs {
 
     #[arg(short, long, default_value_t = 116)]
     pub ttl: u8,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum OutputLevel {
+    All,
+    Default,
+    Info,
+    Warning,
+    Error,
+    Debug,
+}
+
+impl fmt::Display for OutputLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
