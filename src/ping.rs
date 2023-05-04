@@ -12,18 +12,6 @@ use windows::Win32::NetworkManagement::IpHelper::{ICMP_ECHO_REPLY, IP_OPTION_INF
 
 use crate::cli_lib::{Cli, Commands, PingArgs};
 
-const PING_PAYLOAD: &str = "MuttuMuttu";
-const IP_OPTS: IP_OPTION_INFORMATION = IP_OPTION_INFORMATION {
-    Ttl: 128,
-    Tos: 0,
-    Flags: 0,
-    OptionsSize: 0,
-    OptionsData: 0 as *mut u8,
-};
-const REPLY_SIZE: usize = mem::size_of::<ICMP_ECHO_REPLY>();
-const REPLY_BUF_SIZE: usize = REPLY_SIZE + 8 + PING_PAYLOAD.len();
-const TIME_OUT: u32 = 4000;
-
 pub fn ping(cli: &Cli, args: &PingArgs) {
     println!("pinging {}, ttl is: {}", args.dest, args.ttl);
 
@@ -38,15 +26,15 @@ pub fn ping(cli: &Cli, args: &PingArgs) {
             call_icmp_echo2_ex(args, "T1");
             println!("End T1");
         });
-        // println!("Spawning T2");
-        // let t2 = scope.spawn(|| {
-        //     println!("Start T2");
-        //     call_icmp_echo2_ex(args, "T2");
-        //     println!("End T2");
-        // });
+        println!("Spawning T2");
+        let t2 = scope.spawn(|| {
+            println!("Start T2");
+            call_icmp_echo2_ex(args, "T2");
+            println!("End T2");
+        });
 
         t1.join().unwrap();
-        // t2.join().unwrap();
+        t2.join().unwrap();
     })
 }
 
@@ -102,6 +90,19 @@ fn handle_response(result: u32, reply_buf: Vec<u8>, tid: &str) {
 }
 
 fn call_icmp_echo2_ex(args: &PingArgs, tid: &str) {
+    // These constants, when placed outside the function and called via multiple threads, the second thread always fails.
+    const PING_PAYLOAD: &str = "MuttuMuttu";
+    const IP_OPTS: IP_OPTION_INFORMATION = IP_OPTION_INFORMATION {
+        Ttl: 128,
+        Tos: 0,
+        Flags: 0,
+        OptionsSize: 0,
+        OptionsData: 0 as *mut u8,
+    };
+    const REPLY_SIZE: usize = mem::size_of::<ICMP_ECHO_REPLY>();
+    const REPLY_BUF_SIZE: usize = REPLY_SIZE + 8 + PING_PAYLOAD.len();
+    const TIME_OUT: u32 = 4000;
+
     let ip_str = parse_dns_name_or_ip_into_ipv4_ip(&args.dest, tid);
     let ip: Ipv4Addr = Ipv4Addr::from_str(&ip_str).unwrap();
     //let ip: Ipv4Addr = Ipv4Addr::from_str("8.8.8.8").unwrap();
