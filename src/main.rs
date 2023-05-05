@@ -5,6 +5,8 @@ mod ping;
 use clap::Parser;
 use cli_lib::{Cli, Commands, OutputLevel};
 
+use logger::logger::Logger;
+
 //use dns_lookup::{lookup_addr, lookup_host};
 
 fn main() {
@@ -18,7 +20,7 @@ fn main() {
     match &cli.command {
         Commands::Ping(args) => {
             app_init(&args.verbosity);
-            ping::ping(&cli, args);
+            //ping::ping(&cli, args);
         }
         Commands::Trace(args) => {
             println!("'trace' for {}, ttl is: {}", args.dest, args.ttl);
@@ -27,6 +29,6 @@ fn main() {
 }
 
 fn app_init(level: &OutputLevel) {
-    //logger::logger::init_logger();
-    println!("{}", level);
+    let l: Logger = Logger::new("Error");
+    l.test_all();
 }
