@@ -19,8 +19,8 @@ fn main() {
     // matches just as you would the top level cmd
     match &cli.command {
         Commands::Ping(args) => {
-            app_init(&args.verbosity);
-            //ping::ping(&cli, args);
+            //app_init(&args.verbosity);
+            ping::ping(&cli, args);
         }
         Commands::Trace(args) => {
             println!("'trace' for {}, ttl is: {}", args.dest, args.ttl);
@@ -29,6 +29,8 @@ fn main() {
 }
 
 fn app_init(level: &OutputLevel) {
-    let l: Logger = Logger::new("Error");
+    println!("Log level is: {}", level);
+    let l: Logger = Logger::new(level);
+
     l.test_all();
 }

@@ -6,11 +6,11 @@ use windows::imp::GetLastError;
 use windows::Win32::Foundation::HANDLE;
 
 use windows::Win32::NetworkManagement::IpHelper::{
-    /*IcmpCloseHandle,*/ IcmpCreateFile, IcmpHandle, IcmpSendEcho, IcmpSendEcho2Ex,
+    /*IcmpCloseHandle,*/ IcmpCreateFile, IcmpHandle, IcmpSendEcho2Ex,
 };
 use windows::Win32::NetworkManagement::IpHelper::{ICMP_ECHO_REPLY, IP_OPTION_INFORMATION};
 
-use crate::cli_lib::{Cli, Commands, PingArgs};
+use crate::cli_lib::{Cli, PingArgs};
 
 pub fn ping(cli: &Cli, args: &PingArgs) {
     println!("pinging {}, ttl is: {}", args.dest, args.ttl);
@@ -80,7 +80,7 @@ fn handle_response(result: u32, reply_buf: Vec<u8>, tid: &str) {
     if result == 0 {
         let error_code = unsafe { GetLastError() };
         let err = Win32Error::from(error_code);
-        println!("{}:{}", tid, err.to_string());
+        println!("{}:{}:{}", tid, error_code, err.to_string());
     } else {
         let repl: &ICMP_ECHO_REPLY = unsafe { mem::transmute(&reply_buf[0]) };
         println!("{}:Reply:{:#?}", tid, *repl);
@@ -91,7 +91,7 @@ fn handle_response(result: u32, reply_buf: Vec<u8>, tid: &str) {
 
 fn call_icmp_echo2_ex(args: &PingArgs, tid: &str) {
     // These constants, when placed outside the function and called via multiple threads, the second thread always fails.
-    const PING_PAYLOAD: &str = "MuttuMuttu";
+    const PING_PAYLOAD: &str = "muttumuttu";
     const IP_OPTS: IP_OPTION_INFORMATION = IP_OPTION_INFORMATION {
         Ttl: 128,
         Tos: 0,
@@ -105,7 +105,6 @@ fn call_icmp_echo2_ex(args: &PingArgs, tid: &str) {
 
     let ip_str = parse_dns_name_or_ip_into_ipv4_ip(&args.dest, tid);
     let ip: Ipv4Addr = Ipv4Addr::from_str(&ip_str).unwrap();
-    //let ip: Ipv4Addr = Ipv4Addr::from_str("8.8.8.8").unwrap();
     let addr_u32: u32 = ip.into();
     let mut reply_buf = vec![0u8; REPLY_BUF_SIZE];
     let evt: HANDLE = HANDLE(0); // Trying 0 instead of NULL

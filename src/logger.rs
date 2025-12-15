@@ -1,15 +1,15 @@
 pub mod logger {
-    use std::str::FromStr;
 
     use env_logger::Builder;
     use log::{debug, error, info, trace, warn, LevelFilter};
 
+    use crate::cli_lib::OutputLevel;
+
     pub struct Logger {}
 
-    //impl LoggerX {}
     impl Logger {
-        pub fn new(enum_string: &str) -> Self {
-            let filter: LevelFilter = Logger::from_str(enum_string);
+        pub fn new(level: &OutputLevel) -> Self {
+            let filter: LevelFilter = Logger::from_output_level(level);
             let mut builder = Builder::from_default_env();
             builder.filter_level(filter);
             builder.init();
@@ -26,15 +26,14 @@ pub mod logger {
             trace!("Tracing");
         }
 
-        fn from_str(input: &str) -> LevelFilter {
-            match input {
-                "Debug" => LevelFilter::Debug,
-                "Error" => LevelFilter::Error,
-                "Warn" => LevelFilter::Warn,
-                "Default" => LevelFilter::Error,
-                "Trace" => LevelFilter::Trace,
-                "All" => LevelFilter::Trace,
-                _ => LevelFilter::Error,
+        fn from_output_level(level: &OutputLevel) -> LevelFilter {
+            match level {
+                OutputLevel::All => LevelFilter::Trace,
+                OutputLevel::Default => LevelFilter::Error,
+                OutputLevel::Info => LevelFilter::Info,
+                OutputLevel::Warning => LevelFilter::Warn,
+                OutputLevel::Error => LevelFilter::Error,
+                OutputLevel::Debug => LevelFilter::Debug,
             }
         }
     }
