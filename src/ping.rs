@@ -2,17 +2,16 @@ use std::str::FromStr;
 use std::{ffi::c_void, net::Ipv4Addr};
 use std::{mem, net, thread};
 use win32_error::Win32Error;
+use windows::core::Result;
 use windows::imp::GetLastError;
 use windows::Win32::Foundation::HANDLE;
-
 use windows::Win32::NetworkManagement::IpHelper::{
-    /*IcmpCloseHandle,*/ IcmpCreateFile, IcmpHandle, IcmpSendEcho2Ex,
+    IcmpCloseHandle, IcmpCreateFile, IcmpHandle, IcmpSendEcho2Ex,
 };
 use windows::Win32::NetworkManagement::IpHelper::{ICMP_ECHO_REPLY, IP_OPTION_INFORMATION};
 
 use crate::cli_lib::{Cli, PingArgs};
-
-pub fn ping(cli: &Cli, args: &PingArgs) {
+pub fn ping(cli: &Cli, args: &PingArgs) -> Result<()> {
     println!("pinging {}, ttl is: {}", args.dest, args.ttl);
 
     // ICMPEcho is the oldest version and is added only for testing/diagnostics.
@@ -35,7 +34,9 @@ pub fn ping(cli: &Cli, args: &PingArgs) {
 
         t1.join().unwrap();
         t2.join().unwrap();
-    })
+    });
+
+    Ok(())
 }
 
 fn parse_dns_name_or_ip_into_ipv4_ip(dns_or_ip_string: &str, tid: &str) -> String {
@@ -89,7 +90,7 @@ fn handle_response(result: u32, reply_buf: Vec<u8>, tid: &str) {
     }
 }
 
-fn call_icmp_echo2_ex(args: &PingArgs, tid: &str) {
+fn call_icmp_echo2_ex(args: &PingArgs, tid: &str) -> Result<()> {
     // These constants, when placed outside the function and called via multiple threads, the second thread always fails.
     const PING_PAYLOAD: &str = "muttumuttu";
     const IP_OPTS: IP_OPTION_INFORMATION = IP_OPTION_INFORMATION {
@@ -100,7 +101,7 @@ fn call_icmp_echo2_ex(args: &PingArgs, tid: &str) {
         OptionsData: 0 as *mut u8,
     };
     const REPLY_SIZE: usize = mem::size_of::<ICMP_ECHO_REPLY>();
-    const REPLY_BUF_SIZE: usize = REPLY_SIZE + 8 + PING_PAYLOAD.len();
+    const REPLY_BUF_SIZE: usize = REPLY_SIZE + 8 + PING_PAYLOAD.len() + 4096;
     const TIME_OUT: u32 = 4000;
 
     let ip_str = parse_dns_name_or_ip_into_ipv4_ip(&args.dest, tid);
@@ -110,9 +111,10 @@ fn call_icmp_echo2_ex(args: &PingArgs, tid: &str) {
     let evt: HANDLE = HANDLE(0); // Trying 0 instead of NULL
 
     unsafe {
-        let handle: windows::core::Result<IcmpHandle> = IcmpCreateFile();
+        //let handle: windows::core::Result<IcmpHandle> = IcmpCreateFile();
+        let h_icmp: IcmpHandle = IcmpCreateFile()?;
         let result = IcmpSendEcho2Ex::<IcmpHandle, HANDLE>(
-            handle.unwrap(),
+            h_icmp,
             evt,
             None,
             None,
@@ -126,11 +128,13 @@ fn call_icmp_echo2_ex(args: &PingArgs, tid: &str) {
             TIME_OUT,
         );
 
-        // TODO: Usage of moved variable error.
-        //windows::Win32::NetworkManagement::IpHelper::IcmpCloseHandle(handle.unwrap());
         println!("{}: Got response", tid);
+
+        IcmpCloseHandle(h_icmp);
         handle_response(result, reply_buf, tid);
     }
+
+    Ok(())
 }
 
 // fn call_icmp_echo(args: &PingArgs) {
