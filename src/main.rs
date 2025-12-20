@@ -3,8 +3,7 @@ mod logger;
 mod ping;
 
 use clap::Parser;
-use cli_lib::{Cli, Commands, OutputLevel};
-use logger::logger::Logger;
+use cli_lib::{Cli, Commands};
 use windows::core::Result;
 
 //use dns_lookup::{lookup_addr, lookup_host};
@@ -19,19 +18,11 @@ fn main() -> Result<()> {
     // matches just as you would the top level cmd
     match &cli.command {
         Commands::Ping(args) => {
-            app_init(&args.verbosity);
-            ping::ping(&cli, args);
+            let _ = ping::ping(args);
         }
         Commands::Trace(args) => {
             println!("'trace' for {}, ttl is: {}", args.dest, args.ttl);
         }
     }
     Ok(())
-}
-
-fn app_init(level: &OutputLevel) {
-    println!("Log level is: {}", level);
-    let l: Logger = Logger::new(level);
-
-    //l.test_all();
 }
