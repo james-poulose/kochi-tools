@@ -23,7 +23,7 @@ pub struct Cli {
 pub struct PingArgs {
     pub dest: String,
 
-    #[arg(short, long, default_value_t = 116)]
+    #[arg(short, long, default_value_t = 128)]
     pub ttl: u8,
 
     #[arg(short, long, value_enum, default_value_t=OutputLevel::Default)]
@@ -34,7 +34,7 @@ pub struct PingArgs {
 pub struct TraceArgs {
     pub dest: String,
 
-    #[arg(short, long, default_value_t = 116)]
+    #[arg(short, long, default_value_t = 128)]
     pub ttl: u8,
 }
 
