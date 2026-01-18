@@ -69,7 +69,7 @@ fn handle_response(result: u32, reply_buf: Vec<u8>, logger: &Logger) {
     } else {
         let reply: &ICMP_ECHO_REPLY = unsafe { mem::transmute(&reply_buf[0]) };
         let ip_string = Ipv4Addr::from(reply.Address);
-        logger.info(&format!("REPLY: {:#?}", reply));
+        logger.debug(&format!("REPLY: {:#?}", reply));
         logger.info(&format!("SUCCESS: Response from: {}", ip_string));
     }
 }
@@ -115,7 +115,7 @@ fn call_icmp_echo2_ex(ping_args: &PingArgs, logger: &Logger) -> Result<()> {
             evt,
             None,
             None,
-            0u32, //u32::from_be_bytes([0, 0, 0, 0]), // Let the OS choose.
+            0u32, // Let the OS choose.
             addr_u32,
             PING_PAYLOAD.as_ptr() as *const c_void,
             PING_PAYLOAD.len() as u16,
