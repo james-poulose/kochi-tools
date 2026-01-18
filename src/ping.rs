@@ -59,7 +59,7 @@ fn parse_dns_name_or_ip_into_ipv4_ip(dns_or_ip_string: &str, logger: &Logger) ->
 }
 
 fn handle_response(result: u32, reply_buf: Vec<u8>, logger: &Logger) {
-    logger.info(&format!("ICMP Response Code: {:#?}", result));
+    logger.debug(&format!("ICMP Response Code: {:#?}", result));
 
     if result == 0 {
         let error_code: windows::Win32::Foundation::WIN32_ERROR = unsafe { GetLastError() };
@@ -85,15 +85,23 @@ fn call_icmp_echo2_ex(ping_args: &PingArgs, logger: &Logger) -> Result<()> {
         OptionsSize: 0,
         OptionsData: 0 as *mut u8,
     };
-    //const ICMP_ECHO_REPLY_SIZE: usize = mem::size_of::<ICMP_ECHO_REPLY>();
-    //const REPLY_BUF_SIZE: usize = ICMP_ECHO_REPLY_SIZE + 8 + PING_PAYLOAD.len();
-    const REPLY_BUF_SIZE: usize = 32 * 1024;
-    const TIME_OUT: u32 = 4000;
+    const ICMP_ECHO_REPLY_SIZE: usize = mem::size_of::<ICMP_ECHO_REPLY>();
+    const REPLY_BUF_SIZE: usize = ICMP_ECHO_REPLY_SIZE + 8 + PING_PAYLOAD.len();
+
+    // Try below sizes in that order, if error 11010 occurs.
+    //const REPLY_BUF_SIZE: usize = ICMP_ECHO_REPLY_SIZE + 8 + PING_PAYLOAD.len() + (8 * 1024);
+    //const REPLY_BUF_SIZE: usize = 32 * 1024;
+
     logger.debug(&format!("REPLY_BUF_SIZE: {}", REPLY_BUF_SIZE));
+
+    const TIME_OUT: u32 = 4000;
 
     let ip_str = parse_dns_name_or_ip_into_ipv4_ip(&ping_args.dest, &logger);
     let ip: Ipv4Addr = Ipv4Addr::from_str(&ip_str).unwrap();
-    let addr_u32: u32 = ip.into();
+
+    // Convert to big-endian explicitly (or else 11010 error occurs).
+    let addr_u32: u32 = u32::from(ip).to_be();
+
     let mut reply_buf = vec![0u8; REPLY_BUF_SIZE];
     let evt: Option<HANDLE> = None;
     logger.debug(&format!("Pinging IP (u32): {}...", addr_u32));
@@ -107,13 +115,7 @@ fn call_icmp_echo2_ex(ping_args: &PingArgs, logger: &Logger) -> Result<()> {
             evt,
             None,
             None,
-            /*
-               Source  Address:
-               If this parameter is zero, the function uses the default TTL value for the local computer.
-               If we pass something like "u32::from_be_bytes([0, 0, 0, 0])" as many recommend, Windows will error with
-               "11010: Error due to lack of resources"
-            */
-            0, // Let the OS choose.
+            0u32, //u32::from_be_bytes([0, 0, 0, 0]), // Let the OS choose.
             addr_u32,
             PING_PAYLOAD.as_ptr() as *const c_void,
             PING_PAYLOAD.len() as u16,
