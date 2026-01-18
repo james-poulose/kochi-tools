@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::{ffi::c_void, net::Ipv4Addr};
 use std::{mem, net};
 use windows::core::{Error, Result};
-use windows::Win32::Foundation::{GetLastError, HANDLE};
+use windows::Win32::Foundation::{GetLastError, HANDLE, INVALID_HANDLE_VALUE};
 use windows::Win32::NetworkManagement::IpHelper::{
     IcmpCloseHandle, IcmpCreateFile, IcmpSendEcho2Ex,
 };
@@ -59,7 +59,7 @@ fn parse_dns_name_or_ip_into_ipv4_ip(dns_or_ip_string: &str, logger: &Logger) ->
 }
 
 fn handle_response(result: u32, reply_buf: Vec<u8>, logger: &Logger) {
-    logger.info(&format!("RESPONSE CODE: {:#?}", result));
+    logger.info(&format!("ICMP Response Code: {:#?}", result));
 
     if result == 0 {
         let error_code: windows::Win32::Foundation::WIN32_ERROR = unsafe { GetLastError() };
@@ -70,13 +70,14 @@ fn handle_response(result: u32, reply_buf: Vec<u8>, logger: &Logger) {
         let reply: &ICMP_ECHO_REPLY = unsafe { mem::transmute(&reply_buf[0]) };
         let ip_string = Ipv4Addr::from(reply.Address);
         logger.info(&format!("REPLY: {:#?}", reply));
-        logger.info(&format!("SUCCESS Response from: {}", ip_string));
+        logger.info(&format!("SUCCESS: Response from: {}", ip_string));
     }
 }
 
 fn call_icmp_echo2_ex(ping_args: &PingArgs, logger: &Logger) -> Result<()> {
     // These constants, when placed outside the function and called via multiple threads, the second thread always fails.
     const PING_PAYLOAD: &str = "muttumuttu";
+
     let ip_opts: IP_OPTION_INFORMATION = IP_OPTION_INFORMATION {
         Ttl: ping_args.ttl,
         Tos: 0,
@@ -84,31 +85,41 @@ fn call_icmp_echo2_ex(ping_args: &PingArgs, logger: &Logger) -> Result<()> {
         OptionsSize: 0,
         OptionsData: 0 as *mut u8,
     };
-    const REPLY_SIZE: usize = mem::size_of::<ICMP_ECHO_REPLY>();
-    const REPLY_BUF_SIZE: usize = REPLY_SIZE + 8 + PING_PAYLOAD.len(); // + 4096;
+    //const ICMP_ECHO_REPLY_SIZE: usize = mem::size_of::<ICMP_ECHO_REPLY>();
+    //const REPLY_BUF_SIZE: usize = ICMP_ECHO_REPLY_SIZE + 8 + PING_PAYLOAD.len();
+    const REPLY_BUF_SIZE: usize = 32 * 1024;
     const TIME_OUT: u32 = 4000;
+    logger.debug(&format!("REPLY_BUF_SIZE: {}", REPLY_BUF_SIZE));
 
     let ip_str = parse_dns_name_or_ip_into_ipv4_ip(&ping_args.dest, &logger);
     let ip: Ipv4Addr = Ipv4Addr::from_str(&ip_str).unwrap();
     let addr_u32: u32 = ip.into();
     let mut reply_buf = vec![0u8; REPLY_BUF_SIZE];
-    let evt: Option<HANDLE> = Some(HANDLE(std::ptr::null_mut())); // Trying 0 instead of NULL
-    logger.debug(&format!("Pinging IP (u32): {} ...", addr_u32));
+    let evt: Option<HANDLE> = None;
+    logger.debug(&format!("Pinging IP (u32): {}...", addr_u32));
 
     unsafe {
         let h_icmp: HANDLE = IcmpCreateFile()?;
+        assert!(h_icmp != INVALID_HANDLE_VALUE);
+
         let result = IcmpSendEcho2Ex(
             h_icmp,
             evt,
             None,
             None,
-            u32::from_be_bytes([0, 0, 0, 0]), // Let the OS choose.
+            /*
+               Source  Address:
+               If this parameter is zero, the function uses the default TTL value for the local computer.
+               If we pass something like "u32::from_be_bytes([0, 0, 0, 0])" as many recommend, Windows will error with
+               "11010: Error due to lack of resources"
+            */
+            0, // Let the OS choose.
             addr_u32,
             PING_PAYLOAD.as_ptr() as *const c_void,
             PING_PAYLOAD.len() as u16,
             Some(&ip_opts),
             reply_buf.as_mut_ptr() as *mut c_void,
-            REPLY_BUF_SIZE as u32,
+            reply_buf.len() as u32,
             TIME_OUT,
         );
 

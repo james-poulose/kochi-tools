@@ -11,10 +11,23 @@ pub mod logger {
     impl Logger {
         pub fn new(level: &OutputLevel) -> Self {
             let filter: LevelFilter = Logger::from_output_level(level);
+
             let mut builder = Builder::from_default_env();
+            // builder.format(|buf, record| {
+            //     use std::io::Write;
+            //     let ts = buf.timestamp();
+            //     writeln!(
+            //         buf,
+            //         "{} {}: {}",
+            //         ts,
+            //         buf.default_level_style(record.level()),
+            //         record.args()
+            //     )
+            // });
+
             builder.filter_level(filter);
             builder.init();
-            info!("Logger initialized with level: {:?}", filter);
+            info!("Logger level: {:?}", filter);
 
             // Return a new instance.
             return Logger {};
